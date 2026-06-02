@@ -1,0 +1,6 @@
+{
+  "name": "Together",
+  "description": "An AI-powered collaborative study companion tailored from Kindergarten to University level, featuring personalized study plans, gamified lessons, an interactive timer, notebooks, file summarization, and global multi-language localization.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
