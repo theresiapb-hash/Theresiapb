@@ -128,6 +128,10 @@ export default function App() {
     ]);
   };
 
+  const handleUpdateNote = (id: string, title: string, content: string) => {
+    setNotes(notes.map(n => n.id === id ? { ...n, title, content } : n));
+  };
+
   const handleDeleteNote = (id: string) => {
     setNotes(notes.filter(n => n.id !== id));
   };
@@ -345,6 +349,7 @@ export default function App() {
                     notes={notes}
                     onAddNote={handleAddNote}
                     onDeleteNote={handleDeleteNote}
+                    onUpdateNote={handleUpdateNote}
                   />
                 </div>
               )}

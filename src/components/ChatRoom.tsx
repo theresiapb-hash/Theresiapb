@@ -22,6 +22,7 @@ export default function ChatRoom({ currentLanguage, selectedLevel, onSaveToNotes
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
+  const [isSummarizingChat, setIsSummarizingChat] = useState(false);
 
   const messageEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -70,7 +71,9 @@ export default function ChatRoom({ currentLanguage, selectedLevel, onSaveToNotes
     } else if (currentLanguage === 'ja') {
       intro = `こんにちは！私はAI学習パートナーです。私たちの会話を**${t[selectedLevel]}**レベルの学習者に合わせて、**日本語**でカスタマイズしました。今日は何を勉強しますか？`;
     } else if (currentLanguage === 'zh') {
-      intro = `你好！我是您的 AI 学习伴侣。我已经将我的解答深度、语言和词汇完全调配到**${t[selectedLevel]}**，我们将进行**中文**交流。今天想研讨什么？`;
+      intro = `你好！我是您的专属 AI 导师（一起）。我已将解答深度调整为适合 **${t[selectedLevel]}** 等级的中文自习模式。您可以随时向我发问，或者点击右上角的“提炼对话并保存”按钮，让我帮您总结聊天要点哦！今天想学点什么？`;
+    } else if (currentLanguage === 'zh-TW') {
+      intro = `哈囉！我是您的專屬 AI 導師（一起）。我已將解答深度調整為適合 **${t[selectedLevel]}** 等級的中文自習模式。您可以隨時向我發問，或點擊右上角的「提煉對話並保存」按鈕，讓我幫您總結聊天要點哦！今天想學點什麼？`;
     } else {
       intro = `مرحبًا! أنا رفيق المذاكرة الذكي الخاص بك. لقد قمت بضبط المناقشات لتناسب مستوى **${t[selectedLevel]}** باللغة **العربية**. ما الذي ترغب في استكشافه اليوم؟`;
     }
@@ -147,25 +150,102 @@ export default function ChatRoom({ currentLanguage, selectedLevel, onSaveToNotes
     );
   };
 
+  const handleAutoSummarizeChat = async () => {
+    const userAndAssistantConversations = messages.filter(m => m.id !== 'welcome-message');
+    if (userAndAssistantConversations.length === 0) {
+      alert("No active chat history to summarize yet. Try chatting with the AI tutor first!");
+      return;
+    }
+
+    setIsSummarizingChat(true);
+    try {
+      const chatText = userAndAssistantConversations
+        .map(msg => `${msg.role === 'user' ? 'Student question' : 'Tutor explanation'}: ${msg.content}`)
+        .join('\n\n');
+
+      const textPrompt = `You are a helpful, responsible study assistant. 
+Please synthesize our study chat log below into highly useful, organized study notes tailored beautifully to a target education stage of: "${selectedLevel}" in the student's selected language. 
+
+Write the summary in markdown structure containing:
+1. Executive recap of what was discussed & answered.
+2. Conceptual definitions and key terms.
+3. 2-3 custom diagnostic follow-up questions to help testing student memory.
+
+Here is our chat transcript:
+${chatText}`;
+
+      const response = await fetch("/api/summarize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: textPrompt,
+          level: selectedLevel,
+          language: currentLanguage
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error("Summarization failed to process on study server.");
+      }
+
+      const data = await response.json();
+      
+      if (onSaveToNotes) {
+        const title = currentLanguage.startsWith('zh') 
+          ? `AI 对话总结和备考闪卡 (${new Date().toLocaleDateString()})`
+          : `AI Chat Study Recap (${new Date().toLocaleDateString()})`;
+        onSaveToNotes(title, data.summary);
+        alert(currentLanguage.startsWith('zh')
+          ? '太棒了！AI 已成功提炼本轮自习对话内容，并将其作为大卡片直接保存到您的“个人学习笔记本”选项卡中啦！快去看看吧。'
+          : 'Excellent! AI has summarized your study discussion and saved a widescreen digest card directly into your "Study Notebook" tab! Click above to read details anytime.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Oops! Could not connect to summarizer to compile notes right now.");
+    } finally {
+      setIsSummarizingChat(false);
+    }
+  };
+
   return (
     <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-md flex flex-col h-[520px]" id="chat-room-container">
       {/* Active Header */}
       <div className="flex items-center justify-between pb-3 border-b border-gray-100 mb-3" id="chat-tutor-header">
         <div className="flex items-center gap-2">
           <div className="relative">
-            <span className="p-2.5 rounded-full bg-teal-50 text-teal-600 block shadow-sm font-black">
+            <span className="p-2.5 rounded-full bg-teal-50 text-teal-600 block shadow-sm font-black animate-pulse">
               🤖
             </span>
             <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white" />
           </div>
           <div>
-            <h3 className="text-base text-gray-800 font-black">{t.askMeTitle}</h3>
-            <span className="text-[10px] text-emerald-600 font-bold tracking-wide uppercase">Tutor Online • {t[selectedLevel]} Level</span>
+            <h3 className="text-base text-gray-800 font-black">
+              {currentLanguage.startsWith('zh') ? '一起 AI 自习群聊' : t.askMeTitle}
+            </h3>
+            <span className="text-[10px] text-emerald-600 font-bold tracking-wide uppercase">
+              Tutor Online • {t[selectedLevel]} Level
+            </span>
           </div>
         </div>
 
         {onSaveToNotes && (
-          <span className="text-[10px] font-bold text-gray-400">Save replies to notebooks 👇</span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              id="summarize-entire-chat-btn"
+              disabled={isSummarizingChat || messages.filter(m => m.id !== 'welcome-message').length === 0}
+              onClick={handleAutoSummarizeChat}
+              className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1 border cursor-pointer active:scale-95 shadow-xs ${
+                messages.filter(m => m.id !== 'welcome-message').length > 0
+                  ? 'bg-gradient-to-r from-teal-500 to-emerald-600 text-white hover:opacity-90 border-transparent'
+                  : 'bg-gray-50 border-gray-100 text-gray-400 opacity-60 cursor-not-allowed'
+              }`}
+              title="Summarize everything discussed in this session and save as a Notebook entry!"
+            >
+              <Sparkles size={11} className={isSummarizingChat ? 'animate-spin' : ''} />
+              <span>{isSummarizingChat ? 'Summarizing...' : (currentLanguage.startsWith('zh') ? '提炼对话并保存' : 'Summarize Chat')}</span>
+            </button>
+          </div>
         )}
       </div>
 

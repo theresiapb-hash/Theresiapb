@@ -3,8 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
-import { BookOpen, Plus, Trash2, Calendar, FileCheck, HelpCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { BookOpen, Plus, Trash2, Calendar, FileCheck, Edit3, Save, CheckCircle2, BookOpenCheck } from 'lucide-react';
+import Markdown from 'react-markdown';
 import { Note, LanguageCode } from '../types';
 import { TRANSLATIONS } from '../locales';
 
@@ -13,24 +14,91 @@ interface NotebookProps {
   notes: Note[];
   onAddNote: (title: string, content: string) => void;
   onDeleteNote: (id: string) => void;
+  onUpdateNote?: (id: string, title: string, content: string) => void;
 }
 
-export default function Notebook({ currentLanguage, notes, onAddNote, onDeleteNote }: NotebookProps) {
+export default function Notebook({ 
+  currentLanguage, 
+  notes, 
+  onAddNote, 
+  onDeleteNote,
+  onUpdateNote 
+}: NotebookProps) {
   const t = TRANSLATIONS[currentLanguage] || TRANSLATIONS.en;
 
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [showFocusedPage, setShowFocusedPage] = useState(false);
+  // Selected note from binder index (defaults to first note if available)
   const [activeNote, setActiveNote] = useState<Note | null>(null);
+
+  // New Note composition fields
+  const [isCreatingNew, setIsCreatingNew] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [newContent, setNewContent] = useState('');
   const [selectedSubjectTheme, setSelectedSubjectTheme] = useState<'General' | 'Math' | 'Science' | 'History'>('General');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // In-line Edit Note fields
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingTitle, setEditingTitle] = useState('');
+  const [editingContent, setEditingContent] = useState('');
+
+  // Auto-select first note on start if there are notes and no selection
+  useEffect(() => {
+    if (notes.length > 0 && !activeNote && !isCreatingNew) {
+      setActiveNote(notes[0]);
+    }
+  }, [notes]);
+
+  // Keep editor inputs fresh if activeNote changes
+  useEffect(() => {
+    if (activeNote) {
+      setIsEditing(false);
+      setIsCreatingNew(false);
+      setEditingTitle(activeNote.title);
+      setEditingContent(activeNote.content);
+    }
+  }, [activeNote]);
+
+  const handleComposeNew = () => {
+    setIsCreatingNew(true);
+    setIsEditing(false);
+    setActiveNote(null);
+    setNewTitle('');
+    setNewContent('');
+  };
+
+  const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !content.trim()) return;
-    onAddNote(`${selectedSubjectTheme !== 'General' ? '[' + selectedSubjectTheme + '] ' : ''}${title}`, content);
-    setTitle('');
-    setContent('');
-    setShowFocusedPage(false);
+    if (!newTitle.trim() || !newContent.trim()) return;
+    
+    const formattedTitle = selectedSubjectTheme !== 'General' 
+      ? `[${selectedSubjectTheme}] ${newTitle.trim()}` 
+      : newTitle.trim();
+      
+    onAddNote(formattedTitle, newContent);
+    
+    // Clear composition
+    setNewTitle('');
+    setNewContent('');
+    setIsCreatingNew(false);
+  };
+
+  const handleSaveEdit = () => {
+    if (!activeNote || !editingTitle.trim() || !editingContent.trim()) return;
+    
+    if (onUpdateNote) {
+      onUpdateNote(activeNote.id, editingTitle.trim(), editingContent.trim());
+      // Update active note display instantly
+      setActiveNote({
+        ...activeNote,
+        title: editingTitle.trim(),
+        content: editingContent.trim()
+      });
+    } else {
+      // Fallback: trigger re-add
+      onDeleteNote(activeNote.id);
+      onAddNote(editingTitle.trim(), editingContent.trim());
+    }
+    
+    setIsEditing(false);
   };
 
   const getWordCount = (text: string) => {
@@ -38,213 +106,340 @@ export default function Notebook({ currentLanguage, notes, onAddNote, onDeleteNo
   };
 
   return (
-    <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-md h-full flex flex-col justify-between" id="notebook-feature-container">
-      {/* Immersive Distraction-Free 'Paper' Concentration Screen */}
-      {showFocusedPage && (
-        <div className="fixed inset-0 bg-stone-100/95 z-[9999] flex flex-col items-center justify-center p-3 sm:p-6 md:p-8 backdrop-blur-md overflow-hidden animate-scaleUp">
-          <div className="w-full max-w-4xl bg-[#faf6ee] rounded-3xl shadow-2xl border-2 border-stone-200/50 flex flex-col h-[92vh] max-h-[850px] relative overflow-hidden">
-            {/* Lined paper binder ring holes left element to feel tangible */}
-            <div className="absolute left-3 top-0 bottom-0 flex flex-col justify-around w-4 py-8 pointer-events-none z-10">
-              <div className="w-4 h-4 rounded-full bg-stone-300 shadow-inner border border-stone-400/30"></div>
-              <div className="w-4 h-4 rounded-full bg-stone-300 shadow-inner border border-stone-400/30"></div>
-              <div className="w-4 h-4 rounded-full bg-stone-300 shadow-inner border border-stone-400/30"></div>
-              <div className="w-4 h-4 rounded-full bg-stone-300 shadow-inner border border-stone-400/30"></div>
-              <div className="w-4 h-4 rounded-full bg-stone-300 shadow-inner border border-stone-400/30"></div>
-            </div>
-
-            {/* Red school binder vertical margin line */}
-            <div className="absolute left-14 top-0 bottom-0 w-0.5 bg-red-200/80 pointer-events-none"></div>
-
-            {/* Header bar / controls inside the concentration pad */}
-            <div className="bg-[#f5ebd6] px-6 py-4 border-b border-stone-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pl-20 pr-6 shrink-0">
-              <div className="flex items-center gap-2">
-                <span className="flex h-2.5 w-2.5 rounded-full bg-teal-600 animate-ping" />
-                <p className="text-xs font-mono text-stone-600 uppercase tracking-widest font-bold">
-                  📝 Deep Concentration Mode Active
-                </p>
-              </div>
-
-              {/* Subject Tag Selector */}
-              <div className="flex items-center gap-1.5 bg-[#eae0cb] p-1 rounded-xl border border-stone-300/40">
-                {(['General', 'Math', 'Science', 'History'] as const).map((sub) => (
-                  <button
-                    key={sub}
-                    type="button"
-                    onClick={() => setSelectedSubjectTheme(sub)}
-                    className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase transition-all tracking-wide ${
-                      selectedSubjectTheme === sub
-                        ? 'bg-teal-700 text-white shadow-xs'
-                        : 'text-stone-600 hover:bg-[#decfae]'
-                    }`}
-                  >
-                    {sub}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Lined paper sheet container - scrollable scrollbody */}
-            <form onSubmit={handleSubmit} className="flex-1 flex flex-col p-6 pl-20 overflow-y-auto space-y-4">
-              
-              {/* Note Title Input with hand-ruled design */}
-              <div className="relative">
-                <input
-                  type="text"
-                  required
-                  id="focused-note-title"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Enter Title..."
-                  className="w-full text-2xl sm:text-3xl font-extrabold text-stone-800 bg-transparent border-none focus:ring-0 outline-none placeholder-stone-400/70 border-b border-stone-300 pb-2 mb-2 font-display focus:border-b-2 focus:border-teal-600 transition-all"
-                />
-              </div>
-
-              {/* Lined Paper Textarea Box */}
-              <div className="flex-1 flex flex-col relative min-h-[300px]">
-                <textarea
-                  id="focused-note-content"
-                  required
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  placeholder="Start penning your smart study findings, math formulas, or essay plans here to keep your thoughts organized..."
-                  className="w-full flex-1 text-sm sm:text-base font-medium text-stone-700 bg-transparent resize-none focus:ring-0 outline-none pb-12 lined-paper leading-[28px] focus:outline-none"
-                  style={{
-                    fontFamily: '"Inter", sans-serif',
-                  }}
-                />
-              </div>
-
-              {/* Analytics & Action bar floating inside paper footer */}
-              <div className="border-t border-stone-200/80 pt-4 flex flex-col sm:flex-row justify-between items-center gap-4 text-stone-500 shrink-0 select-none pb-2">
-                <div className="flex gap-4 text-xs font-mono font-bold text-stone-500">
-                  <span>WORDS: {getWordCount(content)}</span>
-                  <span>CHARS: {content.length}</span>
-                </div>
-
-                <div className="flex gap-2 w-full sm:w-auto">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (title || content) {
-                        if (confirm("Disconnect and clear note? Any unsaved edits will be forgotten.")) {
-                          setShowFocusedPage(false);
-                          setTitle('');
-                          setContent('');
-                        }
-                      } else {
-                        setShowFocusedPage(false);
-                      }
-                    }}
-                    className="flex-1 sm:flex-none px-4 py-2 bg-stone-200 text-stone-700 hover:bg-stone-300 hover:text-stone-900 rounded-xl font-bold text-xs transition-all active:scale-95"
-                  >
-                    Discard Draft
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 sm:flex-none px-6 py-2 bg-[#d97706] hover:bg-[#b45309] text-white font-extrabold text-xs rounded-xl shadow-md tracking-wider uppercase transition-all hover:-translate-y-0.5 active:scale-95"
-                  >
-                    Save to Binder (💾)
-                  </button>
-                </div>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
+    <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-md flex flex-col justify-between" id="notebook-feature-container">
       <div>
-        <div className="flex items-center justify-between pb-3 border-b border-gray-100 mb-4" id="notebook-header">
-          <div className="flex items-center gap-2">
-            <BookOpen className="text-teal-600 w-5.5 h-5.5" />
-            <h3 className="text-lg font-black text-gray-800 tracking-tight">
-              {t.notesTitle}
-            </h3>
+        {/* Main Header bar */}
+        <div className="flex items-center justify-between pb-4 border-b border-gray-100 mb-6" id="notebook-header">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-amber-50 text-amber-700">
+              <BookOpen className="w-5.5 h-5.5" />
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-gray-800 tracking-tight">
+                {t.notesTitle}
+              </h3>
+              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">Wide View Workspace</p>
+            </div>
           </div>
 
           <button
-            id="toggle-add-note-form-btn"
-            onClick={() => {
-              setShowFocusedPage(true);
-              setActiveNote(null);
-            }}
-            className="p-1 px-3 bg-[#d97706] hover:bg-[#b45309] font-black text-xs text-white rounded-full flex items-center gap-1.5 transition-all shadow-sm cursor-pointer active:scale-95"
+            id="write-new-note-btn"
+            onClick={handleComposeNew}
+            className="p-2 px-4 bg-amber-600 hover:bg-amber-700 font-black text-xs text-white rounded-xl flex items-center gap-1.5 transition-all shadow-sm cursor-pointer active:scale-95"
           >
-            <Plus size={13} />
-            <span>Write on Paper</span>
+            <Plus size={14} />
+            <span>{t.notesAdd || 'Add Note'}</span>
           </button>
         </div>
 
-        {/* Selected note display modal overlay / panel popup */}
-        {activeNote && (
-          <div className="p-4 bg-amber-50/40 rounded-2xl border border-amber-100/70 space-y-2 mb-4 animate-scaleUp" id="selected-note-display">
+        {/* 2-Column Lined-desk view */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6" id="notebook-split-desk">
+          
+          {/* Left sidebar: The binder card index list */}
+          <div className="lg:col-span-4 space-y-3 flex flex-col" id="notebook-sidebar-left">
             <div className="flex items-center justify-between">
-              <span className="inline-block px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[9px] font-black uppercase">Active Binder Item</span>
-              <button
-                id="close-active-note"
-                onClick={() => setActiveNote(null)}
-                className="text-xs text-amber-700 font-bold hover:underline"
-              >
-                Done Reading
-              </button>
+              <span className="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-1">
+                📚 Study Binder ({notes.length})
+              </span>
             </div>
-            <h4 className="text-sm font-bold text-gray-800">{activeNote.title}</h4>
-            <div className="text-xs text-slate-500 font-bold flex items-center gap-1">
-              <Calendar size={11} />
-              <span>Saved on {activeNote.createdAt}</span>
-            </div>
-            <p className="text-xs text-slate-700 font-medium whitespace-pre-wrap leading-relaxed py-2 bg-white p-3 rounded-xl border border-amber-100">
-              {activeNote.content}
-            </p>
-          </div>
-        )}
 
-        {/* List notes */}
-        <div className="space-y-2 max-h-72 overflow-y-auto" id="notes-binders-list">
-          {notes.length === 0 ? (
-            <div className="text-center py-10 opacity-75">
-              <p className="text-lg">📓</p>
-              <h4 className="text-xs font-bold text-gray-500 mt-1">{t.notesTitle}</h4>
-              <p className="text-[10px] text-gray-400 mt-1 max-w-xs mx-auto">
-                {t.noNotes}
-              </p>
+            <div className="space-y-2 max-h-[460px] overflow-y-auto pr-1" id="notes-binders-list">
+              {notes.length === 0 ? (
+                <div className="text-center py-16 px-4 bg-gray-50 rounded-2xl border border-gray-100 opacity-75">
+                  <p className="text-3xl">📓</p>
+                  <h4 className="text-xs font-black text-gray-500 mt-2">{t.notesTitle}</h4>
+                  <p className="text-[10px] text-gray-400 mt-1 max-w-xs mx-auto">
+                    {t.noNotes || 'Your study notebook is currently empty.'}
+                  </p>
+                  <button
+                    id="sidebar-create-note-btn"
+                    onClick={handleComposeNew}
+                    className="mt-4 inline-flex items-center gap-1 text-[11px] font-bold text-amber-600 hover:underline"
+                  >
+                    <Plus size={12} />
+                    <span>Create note now</span>
+                  </button>
+                </div>
+              ) : (
+                notes.map((note) => {
+                  const isSelected = activeNote?.id === note.id && !isCreatingNew;
+                  return (
+                    <div
+                      key={note.id}
+                      id={`note-chip-${note.id}`}
+                      className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between group ${
+                        isSelected 
+                          ? 'bg-amber-50/50 border-amber-200 shadow-xs' 
+                          : 'bg-white border-gray-100 hover:border-gray-200'
+                      }`}
+                    >
+                      <button
+                        id={`view-note-btn-${note.id}`}
+                        onClick={() => {
+                          setActiveNote(note);
+                          setIsCreatingNew(false);
+                          setIsEditing(false);
+                        }}
+                        className="flex-1 mr-2 text-left cursor-pointer focus:outline-none"
+                      >
+                        <p className={`text-xs font-black leading-snug transition-all line-clamp-1 ${
+                          isSelected ? 'text-amber-800' : 'text-gray-700 group-hover:text-amber-700'
+                        }`}>
+                          {note.title}
+                        </p>
+                        <p className="text-[9px] text-gray-400 font-bold flex items-center gap-1 mt-1.5">
+                          <Calendar size={10} />
+                          <span>{note.createdAt}</span>
+                        </p>
+                      </button>
+
+                      <button
+                        id={`delete-note-btn-${note.id}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm("Are you sure you want to delete this study note from your binder?")) {
+                            onDeleteNote(note.id);
+                            if (activeNote?.id === note.id) {
+                              setActiveNote(null);
+                            }
+                          }
+                        }}
+                        className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all cursor-pointer opacity-80 group-hover:opacity-100"
+                        title="Delete Note"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  );
+                })
+              )}
             </div>
-          ) : (
-            notes.map((note) => (
-              <div
-                key={note.id}
-                id={`note-chip-${note.id}`}
-                className="p-3 bg-slate-50/50 border border-gray-100 hover:border-teal-200 rounded-2xl flex items-center justify-between transition-all"
-              >
-                <div
-                  id={`view-note-${note.id}`}
-                  onClick={() => {
-                    setActiveNote(note);
-                    setShowFocusedPage(false);
-                  }}
-                  className="flex-1 mr-4 text-left cursor-pointer group"
-                >
-                  <p className="text-xs font-black text-gray-800 group-hover:text-teal-600 transition-all max-w-[200px] truncate">{note.title}</p>
-                  <p className="text-[10px] text-gray-400 font-bold flex items-center gap-1 mt-0.5">
-                    <Calendar size={10} />
-                    <span>{note.createdAt}</span>
+          </div>
+
+          {/* Right column: Pretty Big Column for writing / viewing */}
+          <div className="lg:col-span-8" id="notebook-main-canvas-right">
+            
+            {/* Create New Note Panel */}
+            {isCreatingNew && (
+              <form onSubmit={handleCreateSubmit} className="bg-amber-50/20 border border-amber-100/60 rounded-3xl p-6 space-y-4 animate-scaleUp">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-amber-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="p-1 px-2.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-black uppercase flex items-center gap-1">
+                      ✎ New Note
+                    </span>
+                    <span className="text-xs text-gray-400 font-bold">Write ideas directly here</span>
+                  </div>
+
+                  {/* Subject Tag Selector */}
+                  <div className="flex items-center gap-1 bg-amber-50 p-1 rounded-xl border border-amber-200/50 self-start">
+                    {(['General', 'Math', 'Science', 'History'] as const).map((sub) => (
+                      <button
+                        key={sub}
+                        type="button"
+                        onClick={() => setSelectedSubjectTheme(sub)}
+                        className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase transition-all tracking-wide ${
+                          selectedSubjectTheme === sub
+                            ? 'bg-amber-600 text-white shadow-xs'
+                            : 'text-gray-500 hover:bg-amber-100/50'
+                        }`}
+                      >
+                        {sub}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <input
+                    type="text"
+                    required
+                    value={newTitle}
+                    onChange={(e) => setNewTitle(e.target.value)}
+                    placeholder="Enter short topic title here..."
+                    className="w-full text-base sm:text-lg font-extrabold text-gray-800 bg-white border border-gray-250 rounded-2xl px-4 py-3 focus:ring-1 focus:ring-amber-500 focus:outline-none font-sans"
+                    id="new-note-title"
+                  />
+
+                  {/* Pretty Big Text Area Column */}
+                  <div className="relative">
+                    <textarea
+                      required
+                      value={newContent}
+                      onChange={(e) => setNewContent(e.target.value)}
+                      placeholder="Start writing your thoughts, assignments, formulas, or summaries in detail here..."
+                      className="w-full min-h-[380px] text-sm font-medium text-gray-700 bg-white p-5 rounded-2xl border border-gray-250 focus:ring-1 focus:ring-amber-500 focus:outline-none leading-relaxed resize-y font-sans"
+                      id="new-note-content"
+                    />
+                    <div className="absolute bottom-3 right-4 text-[9px] font-bold text-gray-400 uppercase tracking-widest pointer-events-none">
+                      Words: {getWordCount(newContent)}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsCreatingNew(false)}
+                    className="px-4 py-2 bg-gray-150 hover:bg-gray-200 text-gray-600 rounded-xl font-bold text-xs transition-all active:scale-95"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs rounded-xl shadow-md tracking-wider uppercase transition-all flex items-center gap-1.5 active:scale-95"
+                  >
+                    <Save size={13} />
+                    <span>Save Note to Binder</span>
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* Read & Edit Existing Note Panel */}
+            {!isCreatingNew && activeNote && (
+              <div className="bg-slate-50/50 border border-slate-100 rounded-3xl p-6 space-y-4 animate-scaleUp">
+                
+                {/* Header info / edit modes toggle */}
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="space-y-0.5">
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editingTitle}
+                        onChange={(e) => setEditingTitle(e.target.value)}
+                        className="text-base font-extrabold text-gray-800 bg-white border border-gray-250 rounded-xl px-3 py-1.5 focus:ring-1 focus:ring-amber-500 focus:outline-none font-sans"
+                        id="editing-note-title"
+                      />
+                    ) : (
+                      <h4 className="text-base font-extrabold text-slate-800 font-sans tracking-tight leading-snug">{activeNote.title}</h4>
+                    )}
+                    
+                    <div className="text-[10px] text-gray-400 font-bold flex items-center gap-1">
+                      <Calendar size={11} />
+                      <span>Note Created on {activeNote.createdAt}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    {isEditing ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setIsEditing(false)}
+                          className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-bold transition-all"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSaveEdit}
+                          className="px-3.5 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1 shadow-sm"
+                        >
+                          <Save size={12} />
+                          <span>Save</span>
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsEditing(true);
+                          setEditingTitle(activeNote.title);
+                          setEditingContent(activeNote.content);
+                        }}
+                        className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border border-slate-200/50"
+                      >
+                        <Edit3 size={12} />
+                        <span>Edit Note</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Pretty Big Text Area reading/editing workspace */}
+                <div className="pt-1">
+                  {isEditing ? (
+                    <div className="relative">
+                      <textarea
+                        value={editingContent}
+                        onChange={(e) => setEditingContent(e.target.value)}
+                        className="w-full min-h-[380px] text-sm font-medium text-gray-700 bg-white p-5 rounded-2xl border border-gray-250 focus:ring-1 focus:ring-amber-500 focus:outline-none leading-relaxed resize-y font-sans"
+                        id="editing-note-content"
+                      />
+                      <div className="absolute bottom-3 right-4 text-[9px] font-bold text-gray-400 uppercase tracking-widest pointer-events-none">
+                        Words: {getWordCount(editingContent)}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="w-full text-slate-700 text-sm font-semibold leading-relaxed bg-[#fdfbf7] p-6 rounded-2xl border border-amber-100/40 shadow-xs whitespace-pre-wrap min-h-[380px] prose prose-sm markdown-body">
+                      {/* Markdown formatted content */}
+                      <Markdown>{activeNote.content}</Markdown>
+                    </div>
+                  )}
+                </div>
+
+                {/* Metadata actions */}
+                <div className="border-t border-slate-100 pt-3 flex items-center justify-between text-[11px] text-gray-400 font-bold">
+                  <span className="uppercase tracking-widest">
+                    Words: {getWordCount(isEditing ? editingContent : activeNote.content)} • Chars: {(isEditing ? editingContent : activeNote.content).length}
+                  </span>
+                  
+                  {!isEditing && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (confirm("Are you sure you want to delete this study note?")) {
+                          onDeleteNote(activeNote.id);
+                          setActiveNote(null);
+                        }
+                      }}
+                      className="text-red-400 hover:text-red-600 hover:underline cursor-pointer flex items-center gap-1 transition-all"
+                    >
+                      <Trash2 size={11} />
+                      <span>Delete from Binder</span>
+                    </button>
+                  )}
+                </div>
+
+              </div>
+            )}
+
+            {/* Zero state: No note selected nor creating one */}
+            {!isCreatingNew && !activeNote && (
+              <div className="bg-slate-50/40 border border-dashed border-slate-200 rounded-3xl p-12 text-center min-h-[460px] flex flex-col items-center justify-center space-y-4">
+                <div className="p-4 rounded-full bg-slate-50 text-slate-400 text-3xl shadow-xs">
+                  📚
+                </div>
+                <div>
+                  <h4 className="text-sm font-black text-gray-700">Select a study note to read</h4>
+                  <p className="text-xs text-gray-400 max-w-sm mt-1 mx-auto leading-relaxed">
+                    Click items in your Study Binder Index on the left to read in detail, or write on paper to add a brand-new note!
                   </p>
                 </div>
                 <button
-                  id={`delete-note-btn-${note.id}`}
-                  onClick={() => onDeleteNote(note.id)}
-                  className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all cursor-pointer active:scale-95"
+                  id="empty-pulp-compose-btn"
+                  onClick={handleComposeNew}
+                  className="p-2 px-5 bg-amber-600 hover:bg-amber-700 font-black text-xs text-white rounded-xl flex items-center gap-1.5 transition-all shadow-md active:scale-95"
                 >
-                  <Trash2 size={13} />
+                  <Plus size={13} />
+                  <span>Write on Paper</span>
                 </button>
               </div>
-            ))
-          )}
+            )}
+
+          </div>
+
         </div>
       </div>
 
-      <div className="pt-3 border-t border-gray-50 flex items-center gap-1 text-[10px] text-gray-400 font-semibold uppercase">
-        <FileCheck size={12} className="text-teal-600" />
-        <span>Binder synchronized local storage</span>
+      <div className="mt-8 pt-4 border-t border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-2 text-[10px] text-gray-400 font-semibold uppercase tracking-wider select-none">
+        <div className="flex items-center gap-1.5">
+          <BookOpenCheck size={13} className="text-teal-600" />
+          <span>Together Interactive Study Binder</span>
+        </div>
+        <div>
+          <span>Local storage persistence • auto-sync active</span>
+        </div>
       </div>
     </div>
   );

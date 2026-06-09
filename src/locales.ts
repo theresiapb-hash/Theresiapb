@@ -379,7 +379,7 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     backToSetup: '戻る',
   },
   zh: {
-    appName: 'Together',
+    appName: '一起',
     tagline: '量身订制的协同学习圈',
     selectLevel: '选择您的教育阶段',
     selectLevelSub: '我们将为您个性化定制学习游戏、问题解决工具和虚拟自习室。',
@@ -439,7 +439,7 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     backToSetup: '返回',
   },
   'zh-TW': {
-    appName: 'Together 共同伴讀',
+    appName: '一起',
     tagline: '量身定制的協同學習圈',
     selectLevel: '選擇您的教育階段',
     selectLevelSub: '我們將為您量身定制學習遊戲、問題解決工具和虛擬自習室。',
