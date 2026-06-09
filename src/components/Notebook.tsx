@@ -135,15 +135,15 @@ export default function Notebook({
         {/* 2-Column Lined-desk view */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6" id="notebook-split-desk">
           
-          {/* Left sidebar: The binder card index list */}
-          <div className="lg:col-span-4 space-y-3 flex flex-col" id="notebook-sidebar-left">
+          {/* Left sidebar: The binder card index list (now Spans 3 columns) */}
+          <div className="lg:col-span-3 space-y-3 flex flex-col border-b lg:border-b-0 lg:border-r lg:border-gray-150 lg:pr-4" id="notebook-sidebar-left">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-1">
                 📚 Study Binder ({notes.length})
               </span>
             </div>
 
-            <div className="space-y-2 max-h-[460px] overflow-y-auto pr-1" id="notes-binders-list">
+            <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1" id="notes-binders-list">
               {notes.length === 0 ? (
                 <div className="text-center py-16 px-4 bg-gray-50 rounded-2xl border border-gray-100 opacity-75">
                   <p className="text-3xl">📓</p>
@@ -216,8 +216,8 @@ export default function Notebook({
             </div>
           </div>
 
-          {/* Right column: Pretty Big Column for writing / viewing */}
-          <div className="lg:col-span-8" id="notebook-main-canvas-right">
+          {/* Right column: Pretty Big Column for writing / viewing (now Spans 9 columns) */}
+          <div className="lg:col-span-9" id="notebook-main-canvas-right">
             
             {/* Create New Note Panel */}
             {isCreatingNew && (
@@ -267,10 +267,10 @@ export default function Notebook({
                       value={newContent}
                       onChange={(e) => setNewContent(e.target.value)}
                       placeholder="Start writing your thoughts, assignments, formulas, or summaries in detail here..."
-                      className="w-full min-h-[380px] text-sm font-medium text-gray-700 bg-white p-5 rounded-2xl border border-gray-250 focus:ring-1 focus:ring-amber-500 focus:outline-none leading-relaxed resize-y font-sans"
+                      className="w-full min-h-[520px] text-sm font-medium text-gray-700 bg-white p-6 rounded-2xl border border-gray-200 shadow-sm focus:ring-2 focus:ring-amber-500 focus:outline-none leading-relaxed resize-y font-sans"
                       id="new-note-content"
                     />
-                    <div className="absolute bottom-3 right-4 text-[9px] font-bold text-gray-400 uppercase tracking-widest pointer-events-none">
+                    <div className="absolute bottom-3 right-4 text-[9px] font-bold text-gray-450 uppercase tracking-widest pointer-events-none bg-white px-2 py-0.5 rounded-md border border-gray-100">
                       Words: {getWordCount(newContent)}
                     </div>
                   </div>
@@ -363,15 +363,15 @@ export default function Notebook({
                       <textarea
                         value={editingContent}
                         onChange={(e) => setEditingContent(e.target.value)}
-                        className="w-full min-h-[380px] text-sm font-medium text-gray-700 bg-white p-5 rounded-2xl border border-gray-250 focus:ring-1 focus:ring-amber-500 focus:outline-none leading-relaxed resize-y font-sans"
+                        className="w-full min-h-[520px] text-sm font-medium text-gray-700 bg-white p-6 rounded-2xl border border-gray-200 shadow-sm focus:ring-2 focus:ring-amber-500 focus:outline-none leading-relaxed resize-y font-sans"
                         id="editing-note-content"
                       />
-                      <div className="absolute bottom-3 right-4 text-[9px] font-bold text-gray-400 uppercase tracking-widest pointer-events-none">
+                      <div className="absolute bottom-3 right-4 text-[9px] font-bold text-gray-450 uppercase tracking-widest pointer-events-none bg-white px-2 py-0.5 rounded-md border border-gray-100">
                         Words: {getWordCount(editingContent)}
                       </div>
                     </div>
                   ) : (
-                    <div className="w-full text-slate-700 text-sm font-semibold leading-relaxed bg-[#fdfbf7] p-6 rounded-2xl border border-amber-100/40 shadow-xs whitespace-pre-wrap min-h-[380px] prose prose-sm markdown-body">
+                    <div className="w-full text-slate-700 text-sm font-semibold leading-relaxed bg-[#fdfbf7] p-6 rounded-2xl border border-amber-100/40 shadow-xs whitespace-pre-wrap min-h-[520px] prose prose-sm markdown-body">
                       {/* Markdown formatted content */}
                       <Markdown>{activeNote.content}</Markdown>
                     </div>

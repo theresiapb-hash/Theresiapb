@@ -137,7 +137,14 @@ export default function SmartSummarizer({
       });
 
       if (!response.ok) {
-        throw new Error(`Summarize failed with status: ${response.status}`);
+        let errMsg = `Summarize failed with status: ${response.status}`;
+        try {
+          const errData = await response.json();
+          if (errData && errData.error) {
+            errMsg = errData.error;
+          }
+        } catch (_) {}
+        throw new Error(errMsg);
       }
 
       const data = await response.json();

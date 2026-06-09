@@ -11,15 +11,25 @@ import dotenv from "dotenv";
 // Load environment variables
 dotenv.config();
 
-// Standard initialization of Gemini Client as instructed
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build',
-    },
-  },
-});
+let aiInstance: GoogleGenAI | null = null;
+
+function getGeminiClient(): GoogleGenAI {
+  if (!aiInstance) {
+    const key = process.env.GEMINI_API_KEY;
+    if (!key || key === "MY_GEMINI_API_KEY" || key.trim() === "") {
+      throw new Error("Unable to locate a valid GEMINI_API_KEY on the server. Please register your API Key in the 'Settings > Secrets' panel of AI Studio and restart the dev server to start learning with your AI companion.");
+    }
+    aiInstance = new GoogleGenAI({
+      apiKey: key,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        },
+      },
+    });
+  }
+  return aiInstance;
+}
 
 async function startServer() {
   const app = express();
@@ -63,7 +73,7 @@ All questions, concepts, and feedback should match this language perfectly. Do n
         };
       });
 
-      const response = await ai.models.generateContent({
+      const response = await getGeminiClient().models.generateContent({
         model: "gemini-3.5-flash",
         contents: contents,
         config: {
@@ -133,7 +143,7 @@ All words, titles, and explanations must represent this language code perfectly.
             text: `${promptText}\n\nDocument/Image Name: ${fileData.name || "Uploaded Image"}`
           };
 
-          const response = await ai.models.generateContent({
+          const response = await getGeminiClient().models.generateContent({
             model: "gemini-3.5-flash",
             contents: { parts: [imagePart, textPart] },
           });
@@ -148,7 +158,7 @@ FileType: ${fileData.mimeType}
 Simulated Context extracted from text:
 ${text || "Study notes regarding learning circles, specialized level content modules, collaborative problem solving, and global cultural awareness."}`;
 
-          const response = await ai.models.generateContent({
+          const response = await getGeminiClient().models.generateContent({
             model: "gemini-3.5-flash",
             contents: documentPrompt,
           });
@@ -161,7 +171,7 @@ ${text || "Study notes regarding learning circles, specialized level content mod
 Material content:
 ${text}`;
 
-        const response = await ai.models.generateContent({
+        const response = await getGeminiClient().models.generateContent({
           model: "gemini-3.5-flash",
           contents: textPrompt,
         });
